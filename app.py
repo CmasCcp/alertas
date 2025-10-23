@@ -3,6 +3,8 @@ import time
 from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
+import psutil
+import threading
 
 # -------------------
 # CONFIGURACIÓN
@@ -10,6 +12,11 @@ from email.mime.text import MIMEText
 API_URL = "http://127.0.0.1:8084/listarDatosEstructurados"
 FECHA = datetime.now().strftime("%Y-%m-%d")  # Obtiene la fecha actual del sistema en formato YYYY-MM-DD
 INTERVALO_HORAS = 28  # cada cuántas horas se ejecuta
+
+# Configuración para monitoreo de RAM
+RAM_THRESHOLD = 50  # Porcentaje de RAM que dispara la alerta
+RAM_CHECK_INTERVAL = 70  # Segundos entre verificaciones de RAM (1 minuto)
+last_ram_alert_time = 0  # Para evitar spam de alertas de RAM
 
 # -------------------
 # FUNCIONES
@@ -65,10 +72,91 @@ def send_email_alert(API_URL,PROYECTO_ID,CODIGO_INTERNO,FECHA):
     except Exception as e:
         print(f"{datetime.now()}: ERROR al enviar correo de alerta ❌ - {e}")
 
+def check_ram_usage():
+    """
+    Verifica el uso de RAM y envía alerta si excede el umbral configurado.
+    """
+    global last_ram_alert_time
+    
+    try:
+        # Obtener información de memoria
+        memory = psutil.virtual_memory()
+        ram_percent = memory.percent
+        
+        print(f"{datetime.now()}: Uso de RAM: {ram_percent:.1f}%")
+        
+        # Verificar si excede el umbral
+        if ram_percent > RAM_THRESHOLD:
+            current_time = time.time()
+            # Evitar spam de alertas (enviar solo una vez cada 30 minutos)
+            if current_time - last_ram_alert_time > 1800:  # 30 minutos = 1800 segundos
+                send_ram_alert(ram_percent, memory)
+                last_ram_alert_time = current_time
+        
+    except Exception as e:
+        print(f"{datetime.now()}: ERROR al verificar RAM ❌ - {e}")
+
+def send_ram_alert(ram_percent, memory):
+    """
+    Envía alerta por correo cuando el uso de RAM excede el umbral.
+    """
+    sender = "servidorcmas@gmail.com"
+    receiver = "dkressing@udd.cl"
+    subject = f"🚨 ALERTA: Uso elevado de RAM - {ram_percent:.1f}%"
+    
+    # Convertir bytes a GB para mayor legibilidad
+    total_gb = memory.total / (1024**3)
+    used_gb = memory.used / (1024**3)
+    available_gb = memory.available / (1024**3)
+    
+    body = f"""
+🚨 ALERTA DE MEMORIA RAM 🚨
+
+El uso de memoria RAM ha excedido el umbral configurado.
+
+📊 Detalles de memoria:
+• Uso actual: {ram_percent:.1f}%
+• Umbral configurado: {RAM_THRESHOLD}%
+• Memoria total: {total_gb:.2f} GB
+• Memoria utilizada: {used_gb:.2f} GB
+• Memoria disponible: {available_gb:.2f} GB
+
+⏰ Fecha y hora: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+Por favor, revisa los procesos en ejecución y libera memoria si es necesario.
+    """
+    
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = receiver
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(sender, "yniu gfrb bsls digo")
+            server.sendmail(sender, receiver, msg.as_string())
+        print(f"{datetime.now()}: 🚨 Alerta de RAM enviada - Uso: {ram_percent:.1f}%")
+    except Exception as e:
+        print(f"{datetime.now()}: ERROR al enviar alerta de RAM ❌ - {e}")
+
+def ram_monitor_thread():
+    """
+    Función que se ejecuta en un hilo separado para monitorear la RAM continuamente.
+    """
+    print(f"{datetime.now()}: 🔍 Iniciando monitoreo de RAM (umbral: {RAM_THRESHOLD}%)")
+    while True:
+        check_ram_usage()
+        time.sleep(RAM_CHECK_INTERVAL)
+
 # -------------------
 # BUCLE PRINCIPAL
 # -------------------
 if __name__ == "__main__":
+    # Iniciar el hilo de monitoreo de RAM
+    ram_thread = threading.Thread(target=ram_monitor_thread, daemon=True)
+    ram_thread.start()
+    
     while True:
         # DICTUC
         check_api(API_URL,"6","SOIL-01",FECHA)
