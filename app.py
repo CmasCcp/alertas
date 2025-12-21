@@ -18,6 +18,16 @@ RAM_THRESHOLD = 70  # Porcentaje de RAM que dispara la alerta
 RAM_CHECK_INTERVAL = 70  # Segundos entre verificaciones de RAM (1 minuto)
 last_ram_alert_time = 0  # Para evitar spam de alertas de RAM
 
+# Configuración para monitoreo de CPU
+CPU_THRESHOLD = 80  # Porcentaje de CPU que dispara la alerta
+CPU_CHECK_INTERVAL = 60  # Segundos entre verificaciones de CPU
+last_cpu_alert_time = 0  # Para evitar spam de alertas de CPU
+
+# Configuración para monitoreo de almacenamiento
+STORAGE_THRESHOLD = 80  # GB mínimos de almacenamiento disponible
+STORAGE_CHECK_INTERVAL = 120  # Segundos entre verificaciones de almacenamiento
+last_storage_alert_time = 0  # Para evitar spam de alertas de almacenamiento
+
 # -------------------
 # FUNCIONES
 # -------------------
@@ -149,13 +159,179 @@ def ram_monitor_thread():
         check_ram_usage()
         time.sleep(RAM_CHECK_INTERVAL)
 
+def check_cpu_usage():
+    """
+    Verifica el uso de CPU y envía alerta si excede el umbral configurado.
+    """
+    global last_cpu_alert_time
+    
+    try:
+        # Obtener uso de CPU (promedio durante 1 segundo)
+        cpu_percent = psutil.cpu_percent(interval=1)
+        
+        print(f"{datetime.now()}: Uso de CPU: {cpu_percent:.1f}%")
+        
+        # Verificar si excede el umbral
+        if cpu_percent > CPU_THRESHOLD:
+            current_time = time.time()
+            # Evitar spam de alertas (enviar solo una vez cada 30 minutos)
+            if current_time - last_cpu_alert_time > 1800:  # 30 minutos = 1800 segundos
+                send_cpu_alert(cpu_percent)
+                last_cpu_alert_time = current_time
+        
+    except Exception as e:
+        print(f"{datetime.now()}: ERROR al verificar CPU ❌ - {e}")
+
+def send_cpu_alert(cpu_percent):
+    """
+    Envía alerta por correo cuando el uso de CPU excede el umbral.
+    """
+    sender = "servidorcmas@gmail.com"
+    receiver = "dkressing@udd.cl"
+    subject = f"🚨 ALERTA: Uso elevado de CPU - {cpu_percent:.1f}%"
+    
+    # Obtener información adicional de CPU
+    cpu_count = psutil.cpu_count(logical=False)  # Núcleos físicos
+    cpu_count_logical = psutil.cpu_count(logical=True)  # Núcleos lógicos
+    cpu_freq = psutil.cpu_freq()
+    
+    body = f"""
+🚨 ALERTA DE USO DE CPU 🚨
+
+El uso de CPU ha excedido el umbral configurado.
+
+📊 Detalles de CPU:
+• Uso actual: {cpu_percent:.1f}%
+• Umbral configurado: {CPU_THRESHOLD}%
+• Núcleos físicos: {cpu_count}
+• Núcleos lógicos: {cpu_count_logical}
+• Frecuencia actual: {cpu_freq.current:.0f} MHz (si disponible)
+
+⏰ Fecha y hora: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+Por favor, revisa los procesos en ejecución y optimiza el uso de CPU si es necesario.
+    """
+    
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = receiver
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(sender, "yniu gfrb bsls digo")
+            server.sendmail(sender, receiver, msg.as_string())
+        print(f"{datetime.now()}: 🚨 Alerta de CPU enviada - Uso: {cpu_percent:.1f}%")
+    except Exception as e:
+        print(f"{datetime.now()}: ERROR al enviar alerta de CPU ❌ - {e}")
+
+def cpu_monitor_thread():
+    """
+    Función que se ejecuta en un hilo separado para monitorear la CPU continuamente.
+    """
+    print(f"{datetime.now()}: 🔍 Iniciando monitoreo de CPU (umbral: {CPU_THRESHOLD}%)")
+    while True:
+        check_cpu_usage()
+        time.sleep(CPU_CHECK_INTERVAL)
+
+def check_storage_usage():
+    """
+    Verifica el almacenamiento disponible y envía alerta si está por debajo del umbral.
+    """
+    global last_storage_alert_time
+    
+    try:
+        # Obtener información del disco principal (C: en Windows, / en Linux)
+        disk_usage = psutil.disk_usage('/')
+        
+        # Convertir bytes a GB
+        total_gb = disk_usage.total / (1024**3)
+        used_gb = disk_usage.used / (1024**3)
+        free_gb = disk_usage.free / (1024**3)
+        used_percent = (disk_usage.used / disk_usage.total) * 100
+        
+        print(f"{datetime.now()}: Almacenamiento libre: {free_gb:.2f} GB ({100-used_percent:.1f}% libre)")
+        
+        # Verificar si el espacio libre está por debajo del umbral
+        if free_gb < STORAGE_THRESHOLD:
+            current_time = time.time()
+            # Evitar spam de alertas (enviar solo una vez cada 30 minutos)
+            if current_time - last_storage_alert_time > 1800:  # 30 minutos = 1800 segundos
+                send_storage_alert(free_gb, total_gb, used_gb, used_percent)
+                last_storage_alert_time = current_time
+        
+    except Exception as e:
+        print(f"{datetime.now()}: ERROR al verificar almacenamiento ❌ - {e}")
+
+def send_storage_alert(free_gb, total_gb, used_gb, used_percent):
+    """
+    Envía alerta por correo cuando el almacenamiento disponible está bajo.
+    """
+    sender = "servidorcmas@gmail.com"
+    receiver = "dkressing@udd.cl"
+    subject = f"🚨 ALERTA: Almacenamiento bajo - {free_gb:.2f} GB libres"
+    
+    body = f"""
+🚨 ALERTA DE ALMACENAMIENTO 🚨
+
+El espacio libre en disco está por debajo del umbral configurado.
+
+💾 Detalles de almacenamiento:
+• Espacio libre: {free_gb:.2f} GB
+• Umbral mínimo: {STORAGE_THRESHOLD} GB
+• Espacio total: {total_gb:.2f} GB
+• Espacio utilizado: {used_gb:.2f} GB ({used_percent:.1f}%)
+• Espacio libre: {100-used_percent:.1f}%
+
+⏰ Fecha y hora: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+Por favor, libera espacio en disco eliminando archivos innecesarios o transfiriéndolos a otra ubicación.
+    """
+    
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = receiver
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(sender, "yniu gfrb bsls digo")
+            server.sendmail(sender, receiver, msg.as_string())
+        print(f"{datetime.now()}: 🚨 Alerta de almacenamiento enviada - Libre: {free_gb:.2f} GB")
+    except Exception as e:
+        print(f"{datetime.now()}: ERROR al enviar alerta de almacenamiento ❌ - {e}")
+
+def storage_monitor_thread():
+    """
+    Función que se ejecuta en un hilo separado para monitorear el almacenamiento continuamente.
+    """
+    print(f"{datetime.now()}: 🔍 Iniciando monitoreo de almacenamiento (mínimo: {STORAGE_THRESHOLD} GB)")
+    while True:
+        check_storage_usage()
+        time.sleep(STORAGE_CHECK_INTERVAL)
+
 # -------------------
 # BUCLE PRINCIPAL
 # -------------------
 if __name__ == "__main__":
-    # Iniciar el hilo de monitoreo de RAM
+    # Iniciar los hilos de monitoreo
+    print(f"{datetime.now()}: 🚀 Iniciando sistema de monitoreo completo...")
+    
+    # Hilo de monitoreo de RAM
     ram_thread = threading.Thread(target=ram_monitor_thread, daemon=True)
     ram_thread.start()
+    
+    # Hilo de monitoreo de CPU
+    cpu_thread = threading.Thread(target=cpu_monitor_thread, daemon=True)
+    cpu_thread.start()
+    
+    # Hilo de monitoreo de almacenamiento
+    storage_thread = threading.Thread(target=storage_monitor_thread, daemon=True)
+    storage_thread.start()
+    
+    print(f"{datetime.now()}: ✅ Todos los monitores iniciados correctamente")
     
     while True:
         # DICTUC
