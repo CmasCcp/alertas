@@ -14,7 +14,7 @@ FECHA = datetime.now().strftime("%Y-%m-%d")  # Obtiene la fecha actual del siste
 INTERVALO_HORAS = 28  # cada cuántas horas se ejecuta
 
 # Configuración para monitoreo de RAM
-RAM_THRESHOLD = 50  # Porcentaje de RAM que dispara la alerta
+RAM_THRESHOLD = 70  # Porcentaje de RAM que dispara la alerta
 RAM_CHECK_INTERVAL = 70  # Segundos entre verificaciones de RAM (1 minuto)
 last_ram_alert_time = 0  # Para evitar spam de alertas de RAM
 
