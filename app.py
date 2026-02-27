@@ -64,7 +64,7 @@ def send_email_alert(API_URL,PROYECTO_ID,CODIGO_INTERNO,FECHA):
     # servidorcmas@gmail.com
     
     sender = "servidorcmas@gmail.com"
-    receiver = "dkressing@udd.cl"
+    receiver = "factoriaccp@udd.cl"
     subject = f"Alerta: Faltan datos en dispositivo {CODIGO_INTERNO}."
     body = f"No hay datos para proyecto {PROYECTO_ID}, dispositivo {CODIGO_INTERNO} en fecha {FECHA}"
     msg = MIMEText(body)
@@ -111,7 +111,7 @@ def send_ram_alert(ram_percent, memory):
     Envía alerta por correo cuando el uso de RAM excede el umbral.
     """
     sender = "servidorcmas@gmail.com"
-    receiver = "dkressing@udd.cl"
+    receiver = "factoriaccp@udd.cl"
     subject = f"🚨 ALERTA: Uso elevado de RAM - {ram_percent:.1f}%"
     
     # Convertir bytes a GB para mayor legibilidad
@@ -187,7 +187,7 @@ def send_cpu_alert(cpu_percent):
     Envía alerta por correo cuando el uso de CPU excede el umbral.
     """
     sender = "servidorcmas@gmail.com"
-    receiver = "dkressing@udd.cl"
+    receiver = "factoriaccp@udd.cl"
     subject = f"🚨 ALERTA: Uso elevado de CPU - {cpu_percent:.1f}%"
     
     # Obtener información adicional de CPU
@@ -269,7 +269,7 @@ def send_storage_alert(free_gb, total_gb, used_gb, used_percent):
     Envía alerta por correo cuando el almacenamiento disponible está bajo.
     """
     sender = "servidorcmas@gmail.com"
-    receiver = "dkressing@udd.cl"
+    receiver = "factoriaccp@udd.cl"
     subject = f"🚨 ALERTA: Almacenamiento bajo - {free_gb:.2f} GB libres"
     
     body = f"""
@@ -335,14 +335,14 @@ if __name__ == "__main__":
     
     while True:
         # DICTUC
-        check_api(API_URL,"6","SOIL-01",FECHA)
-        check_api(API_URL,"6","SOIL-02",FECHA)
-        check_api(API_URL,"6","SOIL-03",FECHA)
-        check_api(API_URL,"6","SOIL-04",FECHA)
-        check_api(API_URL,"6","SOIL-05",FECHA)
-        check_api(API_URL,"6","SOIL-06",FECHA)
-        check_api(API_URL,"6","SOIL-07",FECHA)
-        check_api(API_URL,"6","SOIL-08",FECHA)
+        # check_api(API_URL,"6","SOIL-01",FECHA)
+        # check_api(API_URL,"6","SOIL-02",FECHA)
+        # check_api(API_URL,"6","SOIL-03",FECHA)
+        # check_api(API_URL,"6","SOIL-04",FECHA)
+        # check_api(API_URL,"6","SOIL-05",FECHA)
+        # check_api(API_URL,"6","SOIL-06",FECHA)
+        # check_api(API_URL,"6","SOIL-07",FECHA)
+        # check_api(API_URL,"6","SOIL-08",FECHA)
 
         
         print(f"{datetime.now()}: Esperando {INTERVALO_HORAS} horas para la siguiente ejecución...\n")
